@@ -68,150 +68,149 @@ Currently this framework is only supported on STM32 with HAL library, but in pri
     In[1] : TIM1
     Out[1]:
     ```
-    
     <table style="width:800px">
-    <tr>
-        <th style="width:100px">Offset</th>
-        <th style="width:100px">Register</th>
-        <th>Content</th>
-    </tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x00</td>
-        <td align="center">CR1</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x04</td>
-        <td align="center">CR2</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x0C</td>
-        <td align="center">DIER</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x10</td>
-        <td align="center">SR</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x14</td>
-        <td align="center">EGR</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x24</td>
-        <td align="center">CNT</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x28</td>
-        <td align="center">PSC</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-    <tr>
-        <td align="center" style='font-family:"Courier New"'>0x2C</td>
-        <td align="center">ARR</td>
-        <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
-	</tr>
-</table>
+        <tr>
+            <th style="width:100px">Offset</th>
+            <th style="width:100px">Register</th>
+            <th>Content</th>
+        </tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x00</td>
+            <td align="center">CR1</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x04</td>
+            <td align="center">CR2</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x0C</td>
+            <td align="center">DIER</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x10</td>
+            <td align="center">SR</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x14</td>
+            <td align="center">EGR</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x24</td>
+            <td align="center">CNT</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x28</td>
+            <td align="center">PSC</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+        <tr>
+            <td align="center" style='font-family:"Courier New"'>0x2C</td>
+            <td align="center">ARR</td>
+            <td align="right" style='font-family:"Courier New"'>DEC: 0, HEX: 0x00000000</td>
+    	</tr>
+    </table>
 
     ```
     In[2] : TIM1.CR1
     Out[2]:
     ```
     <table style="width:1000px">
-    <tr>
-        <th>31</th>
-        <th>30</th>
-        <th>29</th>
-        <th>28</th>
-        <th>27</th>
-        <th>26</th>
-        <th>25</th>
-        <th>24</th>
-        <th>23</th>
-        <th>22</th>
-        <th>21</th>
-        <th>20</th>
-        <th>19</th>
-        <th>18</th>
-        <th>17</th>
-        <th>16</th>
-    </tr>
-    <tr>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-    <tr>
-        <th>15</th>
-        <th>14</th>
-        <th>13</th>
-        <th>12</th>
-        <th>11</th>
-        <th>10</th>
-        <th>9</th>
-        <th>8</th>
-        <th>7</th>
-        <th>6</th>
-        <th>5</th>
-        <th>4</th>
-        <th>3</th>
-        <th>2</th>
-        <th>1</th>
-        <th>0</th>
-    </tr>
-    <tr>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td>DITHEN</td>
-        <td>UIFREMAP</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td>ARPE</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td>OPM</td>
-        <td>URS</td>
-        <td>UDIS</td>
-        <td>CEN</td>
-    </tr>
-    <tr>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-        <td>0</td>
-    </tr>
-</table>
+        <tr>
+            <th>31</th>
+            <th>30</th>
+            <th>29</th>
+            <th>28</th>
+            <th>27</th>
+            <th>26</th>
+            <th>25</th>
+            <th>24</th>
+            <th>23</th>
+            <th>22</th>
+            <th>21</th>
+            <th>20</th>
+            <th>19</th>
+            <th>18</th>
+            <th>17</th>
+            <th>16</th>
+        </tr>
+        <tr>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+        <tr>
+            <th>15</th>
+            <th>14</th>
+            <th>13</th>
+            <th>12</th>
+            <th>11</th>
+            <th>10</th>
+            <th>9</th>
+            <th>8</th>
+            <th>7</th>
+            <th>6</th>
+            <th>5</th>
+            <th>4</th>
+            <th>3</th>
+            <th>2</th>
+            <th>1</th>
+            <th>0</th>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>DITHEN</td>
+            <td>UIFREMAP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>ARPE</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>OPM</td>
+            <td>URS</td>
+            <td>UDIS</td>
+            <td>CEN</td>
+        </tr>
+        <tr>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+        </tr>
+    </table>
 
     ```
     In[3] : TIM6.CR2.MMS
@@ -219,7 +218,6 @@ Currently this framework is only supported on STM32 with HAL library, but in pri
     ```
     Essentially, the environment calls the object's `__repr__` method, which shows a table in HTML and returns a string. Note that, however, do not write `TIM1.CNT = TIM1.ARR - 1`; if you want to directly make use of the value of a register, use `.read()`: `TIM1.CNT = TIM1.ARR.read() - 1`.
     Hovering the mouse on a register or bit field name shows its description. In this readme I cannot make it work. You can open the `example.ipynb` to experience this feature.
-
 
 6. You can write to a register or a bit field by making an assignment:
     ``` Python
