@@ -1,13 +1,15 @@
-# version 2.0 - updated 2024/11/3
+# version 3.1 - updated 2024/12/16
 
 if "ser" not in globals():
     ser = None
 _crc = None
 _ev = False
+_count = 0
+SER_LEN = 1040
 
 def serial_init(which=None):
     import serial
-    global ser, _crc, _ev
+    global ser, _crc, _ev, _count
 
     if isinstance(ser, serial.Serial):
         ser.close()
@@ -38,7 +40,8 @@ def serial_init(which=None):
         print("Entering evaluation mode")
         return
 
-    ser = serial.Serial(which, baudrate=115200, timeout=1)
+    ser = serial.Serial(which, baudrate=1000000, timeout=1)
+    _count = 0
     
     from crc import Configuration, Calculator
     config = Configuration(
@@ -54,6 +57,10 @@ def serial_init(which=None):
 serial_init()
 
 def serial_transmit(bs):
+    # print([hex(b) for b in bs])
+
+    global ser, _crc, _ev, _count
+
     if _ev:
         return
     
@@ -61,37 +68,68 @@ def serial_transmit(bs):
         bs = bs.encode()
     
     l = len(bs)
-    data = [0x55, 0xA5, l % 256, l // 256]
+    data = [l % 256, l // 256]
     data += bs
     crc = _crc.checksum(bs)
     data += [crc % 256, crc // 256]
+
+    l = len(data)
+    if l >= SER_LEN:
+        print("Error: packet too long")
+        return
     
+    if _count + l >= SER_LEN:
+        serial_sync()
+    _count += l
+
     ser.write(data)
 
 def serial_receive(size):
+    global ser, _crc, _ev, _count
+    
     if _ev:
         return bytes([0] * size)
 
-    bs = ser.read(size+6)
+    bs = ser.read(size+4)
     
     if len(bs) == 0:
         print("No response")
         return bytes()
 
-    if len(bs) != size+6 \
-        or bs[0] != 0x55 or bs[1] != 0xA5 \
-        or bs[2]+bs[3]*256 != size:
+    if len(bs) != size+4 \
+        or bs[0]+bs[1]*256 != size:
             print("Format error")
             ser.read_all()
             return bytes()
     
     crc = bs[-2] + bs[-1] * 256
-    bs = bs[4:-2]
+    bs = bs[2:-2]
     if _crc.checksum(bs) != crc:
         print("CRC error")
         return bytes()
     
+    _count = 0
     return bs
+
+def serial_clear():
+    global ser, _crc, _ev, _count
+    
+    if _ev:
+        return
+    ser.read_all()
+
+def serial_sync():
+    global ser, _crc, _ev, _count
+    
+    if _ev:
+        return
+    
+    ser.write(bytes([0x55, 0xAA]))
+    read = ser.read(2)
+    if len(read) != 2 or read[0] != ord('O') or read[1] != ord('K'):
+        print("Sync failed")
+
+    _count = 0
 
 def mask_shl(value, mask):
     result = 0
@@ -152,7 +190,7 @@ def simplify_access(mask, value):
     elif n_toset == 1 and n_toclear == 0:
         return ["single-set", mask_to_pos(mask_toset)[0]]
     elif n_toset == 0 and n_toclear == 1:
-        return ["single-clear", mask_to_pos(mask_toclear)[0]]    
+        return ["single-clear", mask_to_pos(mask_toclear)[0]]
     elif n_toset == n_mask and n_toclear == 0:
         return ["set-only"]
     elif n_toset == 0 and n_toclear == n_mask:
@@ -340,7 +378,7 @@ def to_4bytes(word):
 # direct: if True, preserve the bit positions in the word
 # width: 8, 16 or 32
 def read_register(addr, mask=MASK_32B, direct=False, width=32):
-    bs = "_SA:".encode()
+    bs = "_:".encode()
     bs += to_4bytes(addr)
 
     ored = 0
@@ -354,7 +392,7 @@ def read_register(addr, mask=MASK_32B, direct=False, width=32):
         raise NotImplementedError("Unknown access width")
     bs = bs[:4] + bytes([bs[4] | ored]) + bs[5:]
 
-    ser.read_all()
+    serial_clear()
     serial_transmit(bs)
     
     bs = serial_receive(width//8)
@@ -382,7 +420,7 @@ def read_register(addr, mask=MASK_32B, direct=False, width=32):
 # direct: if True, preserve the bit positions in the word
 # width: 8, 16 or 32
 def write_register(addr, value, mask=MASK_32B, direct=False, width=32):
-    bs = "_SA:".encode()
+    bs = "_:".encode()
     bs += to_4bytes(addr)
     if not direct:
         value = mask_shl(value, mask)
@@ -417,7 +455,7 @@ def write_register(addr, value, mask=MASK_32B, direct=False, width=32):
     else:
         raise NotImplementedError("Unknown access width")
 
-    bs = bs[:4] + bytes([bs[4] | ored]) + bs[5:]
+    bs = bs[:2] + bytes([bs[2] | ored]) + bs[3:]
     serial_transmit(bs)
 
     if _logger:

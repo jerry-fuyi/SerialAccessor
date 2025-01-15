@@ -9,7 +9,12 @@ void uart_init(UART_HandleTypeDef*, DMA_HandleTypeDef*);
 
 void uart_transmit(const uint8_t* data, size_t size);
 
-void uart_register_handler(const char*, void(*)(uint8_t*, size_t));
+typedef void (*UartHandlerType)(uint8_t*, size_t);
+
+void uart_register_handler(const char*, UartHandlerType);
+
+void uart_idle_handler();
+void uart_dma_handler();
 
 #ifdef __cplusplus
 }

@@ -22,24 +22,26 @@ Currently this framework is only supported on STM32 with HAL library, but in pri
 
 ## MCU Usage
 
-1. Enable a U(S)ART with 115200 bps, 8 data bits, 1 stop bit and no parity.
+1. Enable a U(S)ART with **1000000 bps**, 8 data bits, 1 stop bit and no parity.
 
 2. Enable the interrupt for this UART.
 
-3. Configure a DMA channel for UART RX.
+3. Configure a DMA channel for UART RX in circular mode.
 
-4. Disable the interuupt for this DMA channel. You should first uncheck "Force DMA channels interrupts".
-
-5. Enable CRC:
+4. Enable CRC:
     - Default Polynomial State: Disable
     - CRC Length: 16-bit
     - CRC Generating Polynomial: X12+X5+X0
     - Default Init Value State: Disable
     - Init Value for CRC Computation: 0
 
-6. Save and generate code.
+5. Save and generate code.
 
-7. Add `seracc.h` and `seracc.c` to your project (either link or copy).
+6. Add `seracc.h` and `seracc.c` to your project (it's recommended to copy these files).
+
+7. In `stm32xxxx_it.c`:
+    - In the IRQ of the DMA channel you configured for UART RX, call `uart_dma_handler()` before the HAL IRQ
+    - In the IRQ of the UART instance, call `uart_idle_handler()` before the HAL IRQ
 
 8. Call `uart_init()` to start the framework. The parameters are pointers to the UART instance and the DMA instance respectively.
 
@@ -276,13 +278,14 @@ You can implement your own handler in addition to the register accessor based on
 Some limitations:
 - The number of handlers, including the built-in register access protocol handler, is limit to 16.
 - The keys of handlers (explained below) should not exceed 7 characters. It is recommended that the key contains letters and numbers only. The key must not contain colon `:`, nor start with underline `_`, which are reserved characters.
-- The length between UART idle states, i.e., the maximum length of a single UART command, is limited to 512.
+- The maximum length of a single UART command is limited to 512. This can be changed accordingly.
+- The handler is invoked in UART interrupt. If your code will use `HAL_Delay`, the UART interrupt should have lower priority than SysTick.
 These limitations may be changed or removed in future releases.
 
 Let's consider a Jupyter-to-I2C bridge: you can construct the data packet in Jupyter and send it to an I2C slave by the MCU.
 
 1. Write wrapper functions in Python.
-    - Let `I2C` be the **key** for the handler.
+    - Let `"I2C"` be the **key** for the handler.
     - Following the colon is the **content** of your protocol. The first byte of the content is either `W` for write or `R` for read. For writing, `W` is followed by the slave address (left-aligned), then the packet. You don't need to explicitly encode the length. For reading, `R` is followed by the slave address, then the size (no larger than 255).
     - In either cases, MCU will return one byte indicating if the I2C operation is successful (e.g., if the slave sends ACK). 0 indicates success.
     - Here is just an example. You are free to change the implementation details.
@@ -354,8 +357,6 @@ Let's consider a Jupyter-to-I2C bridge: you can construct the data packet in Jup
 
 Access to global variables: Global variables have fixed address in RAM. This can be found in `.map` files. In the near future this library will support parsing `.map` files and provide access to the global variables. This eliminate the need to implement custom protocols to access the variable, making parameter tuning easier, e.g., PID.
 
-A more robust framework regarding UART and DMA is required. The mapping from string to handler can be optimized in complexity.
-
 UI improvement: descriptions that are too long cannot be completely displayed. (Need help, I can't do front-end.)
 
 More tests on other platforms, including other series in STM32 and MCUs from other manufacturers, are needed.
@@ -363,6 +364,9 @@ More tests on other platforms, including other series in STM32 and MCUs from oth
 **Contributions are welcome!**
 
 ## Changelog
+
+### Version 3.1 - Communication Optimization
+The UART communication does not rely on `HAL_UARTEx_ReceiveToIdle_DMA` any more, because we found that the ST-LINK V2/1 accidentally inserts idle character when baud rate is 115200, and packs data in 16 bytes under 1000000. Now the UART RX uses circular DMA and the idle interrupt directly.
 
 ### Version 3.0 - Uploaded to Github
 This library is made open-source. It is renamed to "Serial Accessor" to reflect its main functionality.
