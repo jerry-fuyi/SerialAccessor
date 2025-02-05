@@ -1,16 +1,7 @@
-// version 3.1 - updated 2024/12/16
+// version 3.2 - updated 2025/2/1
+// matches PC v3.1
 
 #include "main.h"
-
-#if defined(STM32G4)
-  #include <stm32g4xx_ll_usart.h>
-  #include <stm32g4xx_ll_dma.h>
-#elif defined(STM32H5)
-  #include <stm32h5xx_ll_usart.h>
-  #include <stm32h5xx_ll_dma.h>
-#else
- #error STM32 series not supported yet
-#endif
 
 #include "seracc.h"
 
@@ -20,32 +11,31 @@ UART_HandleTypeDef* huart_acc;
 DMA_HandleTypeDef* hdma_rx;
 extern CRC_HandleTypeDef hcrc;
 
-static void uart_receive_start();
+static void receive_start();
+static void receive_stop();
 static void reg_handler(uint8_t* data, size_t size);
 
 static uint8_t rx_buf[1040];
-static uint8_t* rx_ptr = rx_buf;
+static uint8_t* handle_ptr = rx_buf;
 static int rx_error = 0;
 static int tx_synced = 0;
 
-void uart_init(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma)
+void seracc_init(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma)
 {
   huart_acc = huart;
   hdma_rx = hdma;
 
-  uart_register_handler("_", reg_handler);
+  seracc_register_handler("_", reg_handler);
 
-  __HAL_UART_CLEAR_IDLEFLAG(huart_acc);
-  __HAL_UART_ENABLE_IT(huart_acc, UART_IT_IDLE);
   __HAL_DMA_DISABLE_IT(hdma_rx, DMA_IT_HT);
 
-  uart_receive_start();
+  receive_start();
 }
 
-void uart_transmit(const uint8_t* data, size_t size)
+void seracc_transmit(const uint8_t* data, size_t size)
 {
-  HAL_UART_DMAStop(huart_acc);
-  uart_receive_start();
+  receive_stop();
+  receive_start();
   tx_synced = 1;
 
   uint8_t tx_buf[2];
@@ -57,10 +47,10 @@ void uart_transmit(const uint8_t* data, size_t size)
   HAL_UART_Transmit(huart_acc, tx_buf, 2, 10);
 }
 
-static void uart_sync()
+static void seracc_sync()
 {
-  HAL_UART_DMAStop(huart_acc);
-  uart_receive_start();
+  receive_stop();
+  receive_start();
   uint8_t tx_buf[2] = {'O', 'K'};
   HAL_UART_Transmit(huart_acc, tx_buf, 2, 10);
 }
@@ -69,7 +59,7 @@ static int handler_count = 0;
 static char keys[16][8];
 static void (*handlers[16])(uint8_t*, size_t);
 
-void uart_register_handler(const char* cmd, UartHandlerType cb)
+void seracc_register_handler(const char* cmd, UartHandlerType cb)
 {
   if (handler_count >= 16)
     return;
@@ -101,7 +91,7 @@ static UartHandlerType find_handler(const char* cmd)
 // format error         - -3
 // for incomplete error - -size
 // no error             -  size
-static int uart_manager(uint8_t* begin, uint8_t* end)
+static int seracc_manager(uint8_t* begin, uint8_t* end)
 {
   if (end - begin < 2)
     return -6; // not complete
@@ -110,7 +100,7 @@ static int uart_manager(uint8_t* begin, uint8_t* end)
 
   if (size == 0xAA55)
   {
-    uart_sync();
+    seracc_sync();
     return UART_SYNC; // sync
   }
 
@@ -160,7 +150,7 @@ static int uart_manager(uint8_t* begin, uint8_t* end)
 }
 
 //void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-void uart_idle_handler()
+void seracc_idle_handler()
 {
   __HAL_UART_CLEAR_IDLEFLAG(huart_acc);
 
@@ -171,13 +161,13 @@ void uart_idle_handler()
   if (rx_error)
   {
     if (*(uint32_t*)(end-4) == 0xAA55AA55)
-      uart_sync();
+      seracc_sync();
     return;
   }
 
-  while (rx_ptr < end)
+  while (handle_ptr < end)
   {
-    int res = uart_manager(rx_ptr, end);
+    int res = seracc_manager(handle_ptr, end);
     if (res == UART_SYNC)
     {
       return;
@@ -189,7 +179,7 @@ void uart_idle_handler()
     }
     else if (res == UART_FMT_ERROR)
     {
-      rx_ptr += res;
+      handle_ptr += res;
     }
     else if (res < 0)
     {
@@ -199,21 +189,9 @@ void uart_idle_handler()
     }
     else
     {
-      rx_ptr += res;
+      handle_ptr += res;
     }
   }
-}
-
-void uart_dma_handler()
-{
-  if (
-#if defined(STM32H5)
-      __HAL_DMA_GET_FLAG(hdma_rx, DMA_FLAG_TC)
-#else
-      __HAL_DMA_GET_TC_FLAG_INDEX(hdma_rx)
-#endif
-      )
-    rx_error = 1;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -221,16 +199,29 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   if (huart != huart_acc)
     return;
 
-  uart_dma_handler();
+  rx_error = 1;
 }
 
-static void uart_receive_start()
+static void receive_start()
 {
 //  HAL_UARTEx_ReceiveToIdle_DMA(huart_reg, rx_buf, sizeof(rx_buf)/sizeof(*rx_buf));
-  rx_ptr = rx_buf;
+  handle_ptr = rx_buf;
   rx_error = 0;
+  __HAL_UART_DISABLE_IT(huart_acc, UART_IT_IDLE);
   HAL_UART_Receive_DMA(huart_acc, rx_buf, sizeof(rx_buf));
+  __HAL_UART_CLEAR_IDLEFLAG(huart_acc);
+  __HAL_UART_ENABLE_IT(huart_acc, UART_IT_IDLE);
 }
+
+static void receive_stop()
+{
+  HAL_UART_DMAStop(huart_acc);
+}
+
+typedef struct
+{
+  uint32_t value;
+} __attribute__((packed)) uint32_unaligned;
 
 static void reg_handler(uint8_t* data, size_t size)
 {
@@ -277,8 +268,17 @@ static void reg_handler(uint8_t* data, size_t size)
   case 48: // modify masked bits
   {
     volatile uint32_t* reg = (volatile uint32_t*)addr;
-    uint32_t mask  = *(uint32_t*)(data+4);
-    uint32_t value = *(uint32_t*)(data+8);
+    uint32_t mask, value;
+    if ((uint32_t)data % 4) // not word-aligned, prevent LDRD instruction
+    {
+      mask = ((uint32_unaligned*)(data+4))->value;
+      value = ((uint32_unaligned*)(data+8))->value;
+    }
+    else
+    {
+      mask = *(uint32_t*)(data+4);
+      value = *(uint32_t*)(data+8);
+    }
     *reg = (*reg & ~mask) | value;
     break;
   }
@@ -287,6 +287,6 @@ static void reg_handler(uint8_t* data, size_t size)
   }
 
   if (len > 0)
-    uart_transmit((uint8_t*)&result, len);
+    seracc_transmit((uint8_t*)&result, len);
 }
 
