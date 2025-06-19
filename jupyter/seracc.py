@@ -1,4 +1,4 @@
-# version 3.1 - updated 2024/12/16
+# version 4.0 - updated 2025/6/19
 
 if "ser" not in globals():
     ser = None
@@ -19,7 +19,7 @@ def serial_init(which=None):
         port_st, desc_st, hwid_st = None, None, None
         import serial.tools.list_ports
         for port, desc, hwid in serial.tools.list_ports.comports():
-            if desc.startswith("STMicroelectronics"):
+            if desc.startswith("STMicroelectronics") or desc.startswith("XDS110 Class App"):
                 count += 1
                 port_st, desc_st, hwid_st = port, desc, hwid
         if count == 1:

@@ -18,15 +18,15 @@ These statements further invokes low-level functions in the base library, sendin
 
 Python programming on PC is flexible and can be interactive in Jupyter Notebook/Lab. This means you no longer need to code, build, run (these are really time-consuming) each time you make changes to MCU control logic. Instead, you can implement minimal logic, i.e., an adapter, in MCU, for once, then put all control logic on PC. For register accesses, this adapter in already contained in this framework. Register accesses can even be translated back to C for deployment.
 
-Currently this framework is only supported on STM32 with HAL library, but in principle it can work with all MCUs with UART.
+Currently this framework is only supported on STM32 with HAL and MSPM0 with DriverLib, but in principle it can work with all MCUs with UART (even without DMA).
 
 ## MCU Usage
 
 1. Enable a U(S)ART with **1000000 bps**, 8 data bits, 1 stop bit and no parity.
 
-2. Enable the interrupt for this UART.
+2. Enable the interrupt for this UART. For MSPM0, enable both RX and RX timeout interrupt, and set the RX FIFO threshold to full.
 
-3. Configure a DMA channel for UART RX in circular mode.
+3. Configure a DMA channel for UART RX (circular mode for better failure recovery, normal mode also okay).
 
 4. Enable CRC:
     - Default Polynomial State: Disable
@@ -37,13 +37,11 @@ Currently this framework is only supported on STM32 with HAL library, but in pri
 
 5. Save and generate code.
 
-6. Add `seracc.h` and `seracc.c` to your project (it's recommended to copy these files).
+6. Add `seracc.h`, `seracc_bsp.h` and `seracc.c` to your project (it's recommended to copy these files). Add `seracc_sthal.c` for HAL-based STM32 project or `seracc_mspm0.c` for DriverLib-based MSPM0 project.
 
-7. In `stm32xxxx_it.c`:
-    - In the IRQ of the DMA channel you configured for UART RX, call `uart_dma_handler()` before the HAL IRQ
-    - In the IRQ of the UART instance, call `uart_idle_handler()` before the HAL IRQ
+7. For STM32, in the IRQ of the UART instance in `stm32xxxx_it.c`, call `uart_idle_handler()` before the HAL handler. For TI, skip this step.
 
-8. Call `uart_init()` to start the framework. The parameters are pointers to the UART instance and the DMA instance respectively.
+8. Call `seracc_init()` to start the framework. Before that you need to `#define` some symbols. See the error messages when you compile the project at this time.
 
 ## PC Usage
 
@@ -61,7 +59,7 @@ Currently this framework is only supported on STM32 with HAL library, but in pri
     ```
     This may take several seconds.
 
-4. During importing, the framework will ask you which COM port to use. Look up the COM number in device manager and tell it. If you are using the UART bridge from ST-LINK/V2-1 and have the driver installed, the framework can automatically detect it.
+4. During importing, the framework will ask you which COM port to use. Look up the COM number in device manager and tell it. If you are using the UART bridge from ST-LINK/V2-1 or XDS110 and have the driver installed, the framework can automatically detect it.
     - If you accidentally disconnected the UART bridge, you can restart the kernel to reestablish the connection. If you don't want to restart, call `serial_init` in `seracc` to reestablish.
     - Enter `0` to enter evaluation mode. In this mode, all writes are omitted and all reads return 0's. You can test the functionalities and syntaxes without connecting to the MCU.
 
@@ -278,11 +276,11 @@ You can implement your own handler in addition to the register accessor based on
 Some limitations:
 - The number of handlers, including the built-in register access protocol handler, is limit to 16.
 - The keys of handlers (explained below) should not exceed 7 characters. It is recommended that the key contains letters and numbers only. The key must not contain colon `:`, nor start with underline `_`, which are reserved characters.
-- The maximum length of a single UART command is limited to 512. This can be changed accordingly.
+- The maximum length of a single UART command is limited to 1024. This can be changed accordingly.
 - The handler is invoked in UART interrupt. If your code will use `HAL_Delay`, the UART interrupt should have lower priority than SysTick.
 These limitations may be changed or removed in future releases.
 
-Let's consider a Jupyter-to-I2C bridge: you can construct the data packet in Jupyter and send it to an I2C slave by the MCU.
+Let's consider a Jupyter-to-I2C bridge: you can construct the data packet in Jupyter and send it to an I2C slave via the MCU.
 
 1. Write wrapper functions in Python.
     - Let `"I2C"` be the **key** for the handler.
@@ -325,25 +323,25 @@ Let's consider a Jupyter-to-I2C bridge: you can construct the data packet in Jup
     ``` C
     void i2c_handler(uint8_t* data, size_t size)
     {
-      if (data[0] == 'W')
-      {
-        uint8_t addr = data[1];
-        uint8_t len = size - 2;
-        uint8_t ret = 0;
-        if (HAL_I2C_Master_Transmit(&hi2c1, addr, data+2, len, len+1) != HAL_OK)
-          ret = -1;
-        uart_transmit(&ret, 1);
-      }
-      else if (data[0] == 'R')
-      {
-        uint8_t addr = data[1];
-        uint8_t len = data[2];
-        uint8_t ret[len+1];
-        ret[0] = 0;
-        if (HAL_I2C_Master_Receive(&hi2c1, addr, ret+1, len, len+1) != HAL_OK)
-          ret[0] = -1;
-        uart_transmit(ret, len+1);
-      }
+        if (data[0] == 'W')
+        {
+            uint8_t addr = data[1];
+            uint8_t len = size - 2;
+            uint8_t ret = 0;
+            if (HAL_I2C_Master_Transmit(&hi2c1, addr, data+2, len, len+1) != HAL_OK)
+                ret = -1;
+            uart_transmit(&ret, 1);
+        }
+        else if (data[0] == 'R')
+        {
+            uint8_t addr = data[1];
+            uint8_t len = data[2];
+            uint8_t ret[len+1];
+            ret[0] = 0;
+            if (HAL_I2C_Master_Receive(&hi2c1, addr, ret+1, len, len+1) != HAL_OK)
+                ret[0] = -1;
+            uart_transmit(ret, len+1);
+        }
     }
     ```
 
@@ -364,6 +362,9 @@ More tests on other platforms, including other series in STM32 and MCUs from oth
 **Contributions are welcome!**
 
 ## Changelog
+
+### Version 4.0 - HAL Refactor and Support for MSPM0
+`seracc.c` is completely platform-independent. The hardware-dependent functions are extracted to `seracc_bsp.h` and implementations are provided for STM32 and MSPM0 in `seracc_sthal.c` and `seracc_mspm0.c`, respectively.
 
 ### Version 3.1 - Communication Optimization
 The UART communication does not rely on `HAL_UARTEx_ReceiveToIdle_DMA` any more, because we found that the ST-LINK V2/1 accidentally inserts idle character when baud rate is 115200, and packs data in 16 bytes under 1000000. Now the UART RX uses circular DMA and the idle interrupt directly.

@@ -1,4 +1,4 @@
-// version 3.2 - updated 2025/2/1
+// version 4.0 - updated 2025/6/19
 
 #ifndef INC_SERACC_H_
 #define INC_SERACC_H_
@@ -7,13 +7,16 @@
 extern "C" {
 #endif
 
-void seracc_init(UART_HandleTypeDef*, DMA_HandleTypeDef*);
+#include <stdint.h>
+#include <stddef.h>
+
+void seracc_init();
 
 void seracc_transmit(const uint8_t* data, size_t size);
 
-typedef void (*UartHandlerType)(uint8_t*, size_t);
+typedef void (*SerAccHandlerType)(uint8_t*, size_t);
 
-void seracc_register_handler(const char*, UartHandlerType);
+void seracc_register_handler(const char*, SerAccHandlerType);
 
 void seracc_idle_handler();
 
