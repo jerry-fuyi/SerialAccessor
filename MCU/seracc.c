@@ -271,7 +271,7 @@ static void reg_handler(uint8_t* data, size_t size)
         else
         {
             mask = access32(data+4);
-            value = access32(data+4);
+            value = access32(data+8);
         }
         *reg = (*reg & ~mask) | value;
         break;
