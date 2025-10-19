@@ -1,4 +1,4 @@
-// version 4.0 - updated 2025/6/19
+// version 4.1 - updated 2025/10/19
 
 #include "seracc.h"
 #include "seracc_bsp.h"
@@ -226,26 +226,59 @@ static void reg_handler(uint8_t* data, size_t size)
     uint_fast8_t len = 0;
     switch (size*4+id)
     {
-    case 17: // 8-bit read
+    case 17: // 8-bit 4-aligned read
         result = *(volatile uint8_t*)addr;
         len = 1;
         break;
-    case 18: // 16-bit read
+    case 18: // 16-bit 4-aligned read
         result = *(volatile uint16_t*)addr;
         len = 2;
         break;
-    case 16: // 32-bit read
+    case 16: // 32-bit 4-aligned read
         result = *(volatile uint32_t*)addr;
         len = 4;
         break;
-    case 21: // 8-bit write
+    case 21: // 8-bit 4-aligned write
         *(volatile uint8_t*)addr = data[4];
         break;
-    case 24: // 16-bit write
+    case 24: // 16-bit 4-aligned write
         *(volatile uint16_t*)addr = access16(data+4);
         break;
-    case 32: // 32-bit write
+    case 32: // 32-bit 4-aligned write
         *(volatile uint32_t*)addr = access32(data+4);
+        break;
+    case 29:
+    case 30:
+    case 31:
+        addr = access32(data);
+        if (data[6] < 0x10) // 8/16/32-bit unaligned read
+        {
+            len = data[6];
+            memcpy(&result, (void*)addr, len);
+        }
+        else if (data[6] == 0x11) // 8-bit unaligned write
+        {
+            *(volatile uint8_t*)addr = data[4];
+        }
+        else if (data[6] == 0x12) // 16-bit unaligned write
+        {
+            if (addr & 1)
+                memcpy((void*)addr, data+4, 2);
+            else
+                *(volatile uint16_t*)addr = access16(data+4);
+        }
+        break;
+    case 37: // 32-bit unaligned write
+    case 38:
+    case 39:
+        addr = access32(data);
+        if (addr & 1)
+            memcpy((void*)addr, data+4, 4);
+        else
+        {
+            *(volatile uint16_t*)(addr+0) = access16(data+4);
+            *(volatile uint16_t*)(addr+2) = access16(data+6);
+        }
         break;
     case 20: // single bit set
         *(volatile uint32_t*)addr |= 1u << data[4];

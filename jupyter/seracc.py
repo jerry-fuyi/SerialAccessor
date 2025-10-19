@@ -1,4 +1,4 @@
-# version 4.0 - updated 2025/6/19
+# version 4.1 - updated 2025/10/19
 
 if "ser" not in globals():
     ser = None
@@ -351,18 +351,24 @@ def logging(filename=None):
     return AccessLogger(filename)
 
 # FORMAT (little-ended):
-#        CMD                0-3       4     5  6-7  8-11
-#  8-bit read        _SA: <addr|1>
-# 16-bit read        _SA: <addr|2>
-# 32-bit read        _SA: <addr  >
-#  8-bit write       _SA: <addr|1> <value>
-# 16-bit write       _SA: <addr  > <value   >
-# 32-bit write       _SA: <addr  > <value        >
-# single bit set     _SA: <addr  > <pos>
-# single bit clear   _SA: <addr|2> <pos>
-#   set bits         _SA: <addr|1> <mask         >
-# clear bits         _SA: <addr|2> <mask         >
-# modify masked bits _SA: <addr  > <mask         > <value>
+#        CMD               0-3       4     5  6  7  8  9-11
+#  8-bit read  (4-AL) _: <addr|1>                           (4)
+#  8-bit read         _: <addr  >    x     x h01            (7)
+# 16-bit read  (4-AL) _: <addr|2>                           (4)
+# 16-bit read         _: <addr  >    x     x h02            (7)
+# 32-bit read  (4-AL) _: <addr  >                           (4)
+# 32-bit read         _: <addr  >    x     x h04            (7)
+#  8-bit write (4-AL) _: <addr|1> <value>                   (5)
+#  8-bit write        _: <addr  > <value>  x h11            (7)
+# 16-bit write (4-AL) _: <addr  > <value   >                (6)
+# 16-bit write        _: <addr  > <value   > h12            (7)
+# 32-bit write (4-AL) _: <addr  > <value         >          (8)
+# 32-bit write        _: <addr  > <value         >  x       (9)
+# single bit set      _: <addr  > <pos>                     (5)
+# single bit clear    _: <addr|2> <pos>                     (5)
+#   set bits          _: <addr|1> <mask          >          (8)
+# clear bits          _: <addr|2> <mask          >          (8)
+# modify masked bits  _: <addr  > <mask          >  <value> (12)
 
 # assume all registers are 32-bit
 MASK_32B = 2**32 - 1
@@ -379,18 +385,32 @@ def to_4bytes(word):
 # width: 8, 16 or 32
 def read_register(addr, mask=MASK_32B, direct=False, width=32):
     bs = "_:".encode()
-    bs += to_4bytes(addr)
 
-    ored = 0
-    if width == 32:
-        pass
-    elif width == 16:
-        ored = 2
-    elif width == 8:
-        ored = 1
+    if addr & 0b11 != 0:
+
+        c = 0
+        if width == 32:
+            c = 4
+        elif width == 16:
+            c = 2
+        elif width == 8:
+            c = 1
+        else:
+            raise NotImplementedError("Unknown access width")
+        bs += to_4bytes(addr) + bytes([0xFE, 0xEF, c])
+
     else:
-        raise NotImplementedError("Unknown access width")
-    bs = bs[:4] + bytes([bs[4] | ored]) + bs[5:]
+
+        ored = 0
+        if width == 32:
+            pass
+        elif width == 16:
+            ored = 2
+        elif width == 8:
+            ored = 1
+        else:
+            raise NotImplementedError("Unknown access width")
+        bs += to_4bytes(addr | ored)
 
     serial_clear()
     serial_transmit(bs)
@@ -422,41 +442,63 @@ def read_register(addr, mask=MASK_32B, direct=False, width=32):
 def write_register(addr, value, mask=MASK_32B, direct=False, width=32):
     bs = "_:".encode()
     bs += to_4bytes(addr)
-    if not direct:
-        value = mask_shl(value, mask)
-    ored = 0
 
-    if width == 32:
-        cls = simplify_access(mask, value)
-        if cls[0] == "write-only":
-            bs += to_4bytes(value)
-        elif cls[0] == "single-set":
-            bs += bytes([cls[1]])
-        elif cls[0] == "single-clear":
-            ored = 2
-            bs += bytes([cls[1]])
-        elif cls[0] == "set-only":
-            ored = 1
-            bs += to_4bytes(mask)
-        elif cls[0] == "clear-only":
-            ored = 2
-            bs += to_4bytes(MASK_32B - mask)
-        elif cls[0] == "full-modify":
-            bs += to_4bytes(mask)
-            bs += to_4bytes(value)
+    if addr & 0b11 != 0:
+        
+        if mask not in [MASK_32B, 2**width-1]:
+            raise NotImplementedError("Masked write with unaligned address is forbidden")
 
-    elif width == 16:
-        bs += to_4bytes(value)[:2]
+        if width == 32:
+            bs += to_4bytes(value) + bytes([0xFF])
+        
+        elif width == 16:
+            bs += to_4bytes(value)[:2] + bytes([0x12])
 
-    elif width == 8:
-        ored = 1
-        bs += to_4bytes(value)[:1]
+        elif width == 8:
+            bs += to_4bytes(value)[:1] + bytes([0xFF, 0x11])
+
+        else:
+            raise NotImplementedError("Unknown access width")
+
+        serial_transmit(bs)
 
     else:
-        raise NotImplementedError("Unknown access width")
 
-    bs = bs[:2] + bytes([bs[2] | ored]) + bs[3:]
-    serial_transmit(bs)
+        if not direct:
+            value = mask_shl(value, mask)
+        ored = 0
+
+        if width == 32:
+            cls = simplify_access(mask, value)
+            if cls[0] == "write-only":
+                bs += to_4bytes(value)
+            elif cls[0] == "single-set":
+                bs += bytes([cls[1]])
+            elif cls[0] == "single-clear":
+                ored = 2
+                bs += bytes([cls[1]])
+            elif cls[0] == "set-only":
+                ored = 1
+                bs += to_4bytes(mask)
+            elif cls[0] == "clear-only":
+                ored = 2
+                bs += to_4bytes(MASK_32B - mask)
+            elif cls[0] == "full-modify":
+                bs += to_4bytes(mask)
+                bs += to_4bytes(value)
+
+        elif width == 16:
+            bs += to_4bytes(value)[:2]
+
+        elif width == 8:
+            ored = 1
+            bs += to_4bytes(value)[:1]
+
+        else:
+            raise NotImplementedError("Unknown access width")
+
+        bs = bs[:2] + bytes([bs[2] | ored]) + bs[3:]
+        serial_transmit(bs)
 
     if _logger:
         _logger.log_write(addr, mask, value, width)
