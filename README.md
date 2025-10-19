@@ -37,7 +37,7 @@ Currently this framework is only supported on STM32 with HAL and MSPM0 with Driv
 
 5. Save and generate code.
 
-6. Add `seracc.h`, `seracc_bsp.h` and `seracc.c` to your project (it's recommended to copy these files). Add `seracc_sthal.c` for HAL-based STM32 project or `seracc_mspm0.c` for DriverLib-based MSPM0 project.
+6. Add `seracc.h`, `seracc_bsp.h` and `seracc.c` to your project (it's recommended to copy these files). Add `seracc_sthal.c` for HAL-based STM32 project or `seracc_mspm0.c` for DriverLib-based MSPM0 project. For other platforms, you can implement these BSP functions yourself.
 
 7. For STM32, in the IRQ of the UART instance in `stm32xxxx_it.c`, call `uart_idle_handler()` before the HAL handler. For TI, skip this step.
 
@@ -353,7 +353,9 @@ Let's consider a Jupyter-to-I2C bridge: you can construct the data packet in Jup
 
 ## Todo
 
-Access to global variables: Global variables have fixed address in RAM. This can be found in `.map` files. In the near future this library will support parsing `.map` files and provide access to the global variables. This eliminate the need to implement custom protocols to access the variable, making parameter tuning easier, e.g., PID.
+~Access to global variables: Global variables have fixed address in RAM. This can be found in `.map` files. In the near future this library will support parsing `.map` files and provide access to the global variables. This eliminate the need to implement custom protocols to access the variable, making parameter tuning easier, e.g., PID.~ It's recommended to use STM32CubeMonitor for accessing global variables and plotting them.
+
+Non-blocking UART transfer: at this time the custom handlers must be blocking, otherwise commands may be missed. A circular buffer with DMA will be implemented.
 
 UI improvement: descriptions that are too long cannot be completely displayed. (Need help, I can't do front-end.)
 
@@ -362,6 +364,10 @@ More tests on other platforms, including other series in STM32 and MCUs from oth
 **Contributions are welcome!**
 
 ## Changelog
+
+### Version 4.1 - Unaligned Access
+Now support access that are not 4-byte aligned. This is useful when accessing external memory mounted on M(S)MC and Octo-SPI.
+STM32G431 and STM32N657 headers are provided for teaching purposes.
 
 ### Version 4.0 - HAL Refactor and Support for MSPM0
 `seracc.c` is completely platform-independent. The hardware-dependent functions are extracted to `seracc_bsp.h` and implementations are provided for STM32 and MSPM0 in `seracc_sthal.c` and `seracc_mspm0.c`, respectively.
